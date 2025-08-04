@@ -1,65 +1,436 @@
 <!DOCTYPE html>
+<html>
+<head>
 <meta charset="utf-8">
 
-<!-- Load d3.js -->
+<style>
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    margin: 0;
+    font-family: Arial, sans-serif;
+  }
+  
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  #controls {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: start;
+    gap: 10px;
+    z-index: 100;
+  }
+  
+  #my_dataviz {
+    margin-bottom: 20px;
+  }
+  
+  #navButtons {
+    display: flex;
+    gap: 10px;
+  }
+  
+  button {
+    padding: 10px 20px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+    #graphTextContainer {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    max-width: 1100px;
+    margin-top: 20px;
+  }
+
+  #my_dataviz {
+    flex: 0 0 800px; 
+  }
+
+  #slideText {
+    flex: 1;
+    padding-left: 30px;
+    font-size: 16px;
+    color: #333;
+    font-family: Arial, sans-serif;
+    line-height: 1.4;
+    max-width: 280px;
+  }
+
+  h1 {
+    font-family: Arial, sans-serif;
+    font-weight: 600;
+    font-size: 36px;
+    margin-bottom: 0;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Bitcoin Price History</h1>
+  <div id="controls">
+    <label for="metricSelect">Show: </label>
+    <select id="metricSelect">
+      <option value="Close">Closing Price</option>
+      <option value="Volume">Trading Volume</option>
+    </select>
+  </div>
+  <div id="graphTextContainer">
+    <div id="my_dataviz"></div>
+    <div id="slideText"></div>
+  </div>
+  <div id="navButtons">
+    <button id="prev">Previous</button>
+    <button id="next">Next</button>
+  </div>
+</div>
+
 <script src="https://d3js.org/d3.v4.js"></script>
-
-<!-- Create a div where the graph will take place -->
-<div id="my_dataviz"></div>
-
+<script src="https://rawgit.com/susielu/d3-annotation/master/d3-annotation.min.js"></script>
 <script>
 
-// set the dimensions and margins of the graph
-var margin = {top: 10, right: 30, bottom: 30, left: 60},
-    width = 460 - margin.left - margin.right,
-    height = 400 - margin.top - margin.bottom;
+  var slideTexts = [
+    `While the concept of bitcoin was created in 2008, its implementation came in 2009, and its first commercial transaction took place in 2010.
+By February 2015, over 100,000 vendors around the world accepted Bitcoin. However, its value sat at a relatively meagre ~$450 per coin.
+In december 2017, Bitcoin soared to a peak of $19,892, growing more than 20x over just one year.`,
+    `2020 marked the beginning of the COVID pandemic. In August 2020, the federal reserve began printing money at an accelerated rate in an effort to bolster the economy.
+This raised concerns regarding the stability of the dollar, and many concerned individuals looked to Bitcoin as a safe haven.`,
+    `Bitcoin continues its upward trend and volatility today. Big players like Microstrategy own billions in Bitcoin, and the United States very recently established a bitcoin reserve.
+Bitcoin has come far since its first transactions more than a decade ago, but much remains to be seen. Will Bitcoin's infamous volatility stabilize enough for people to feel secure in having savings in Bitcoin?`
+  ];
 
-// append the svg object to the body of the page
-var svg = d3.select("#my_dataviz")
-  .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-  .append("g")
-    .attr("transform",
-          "translate(" + margin.left + "," + margin.top + ")");
+  function updateSlideText(slideIndex) {
+    d3.select("#slideText").html(slideTexts[slideIndex].replace(/\n/g, "<br>"));
+  }
 
-//Read the data
-d3.csv("https://raw.githubusercontent.com/alexander-rau/alexander-rau.github.io/refs/heads/main/Bitcoin_history_data.csv",
+  function renderSlideWithText(slideIndex) {
+    renderSlide(slideIndex);
+    updateSlideText(slideIndex);
+  }
 
-  // When reading the csv, I must format variables:
-  function(d){
-    return { Date : d3.timeParse("%Y-%m-%d")(d.Date), Close : d.Close }
-  },
+  d3.select("#prev").on("click", function() {
+    if (currentSlide > 0) {
+      currentSlide--;
+      renderSlideWithText(currentSlide);
+    }
+  });
 
-  // Now I can use this dataset:
-  function(data) {
+  d3.select("#next").on("click", function() {
+    if (currentSlide < numSlides - 1) {
+      currentSlide++;
+      renderSlideWithText(currentSlide);
+    }
+  });
 
-    // Add X axis --> it is a date format
-    var x = d3.scaleTime()
-      .domain(d3.extent(data, function(d) { return d.Date; }))
-      .range([ 0, width ]);
-    svg.append("g")
-      .attr("transform", "translate(0," + height + ")")
-      .call(d3.axisBottom(x));
+  d3.select("#metricSelect").on("change", function() {
+    metric = this.value;
+    renderSlideWithText(currentSlide);
+  });
 
-    // Add Y axis
-    var y = d3.scaleLinear()
-      .domain([0, d3.max(data, function(d) { return +d.Close; })])
-      .range([ height, 0 ]);
-    svg.append("g")
-      .call(d3.axisLeft(y));
+  renderSlideWithText(currentSlide);
+</script>
+
+<script>
+  
+var margin = {top: 10, right: 30, bottom: 60, left: 120},
+    width = 800 - margin.left - margin.right,
+    height = 400 - margin.top - margin.bottom,
+    numSlides = 3,
+    currentSlide = 0,
+    metric = "Close",   
+    slideData = [];
+
+var halvingEvents = [
+  { date: new Date(2016, 6, 1), label: "Second halving, bringing the block reward down to 12.5 BTC per block" },
+  { date: new Date(2020, 4, 1), label: "Third halving - the mining reward is now 6.25 BTC/block" },
+  { date: new Date(2024, 3, 1), label: "Fourth halving - the mining reward is currently 3.125 BTC/block" } 
+];
+
+
+//buttons
+var prevBtn = d3.select("#prev"),
+    nextBtn = d3.select("#next"),
+    metricSelect = d3.select("#metricSelect");
+
+
+function renderSlide(slideIndex) {
+  //clean old svgs
+  d3.select("#my_dataviz").select("svg").remove();
+
+  var svg = d3.select("#my_dataviz")
+    .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  var data = slideData[slideIndex];
+
+  //axis marks
+  var x = d3.scaleTime()
+    .domain(d3.extent(data, function(d) { return d.Date; }))
+    .range([0, width]);
+  var y = d3.scaleLinear()
+    .domain([0, d3.max(data, function(d) { return d[metric]; })])
+    .range([height, 0]);
+
+  svg.append("g")
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x)
+      .ticks(d3.timeYear.every(1))
+      .tickFormat(d3.timeFormat("%Y")));
+
+  svg.append("g")
+    .call(d3.axisLeft(y));
+// more axis labels
+  svg.append("text")
+    .attr("transform", "translate(" + (width/2) + " ," + (height + margin.bottom - 10) + ")")
+    .style("text-anchor", "middle")
+    .style("font-size", "12px")
+    .text("Year");
+
+  svg.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", 0 - margin.left + 20)
+    .attr("x", 0 - (height / 2))
+    .style("text-anchor", "middle")
+    .style("font-size", "12px")
+    .text(metric === "Close" ? "Bitcoin Value (USD)" : "Trading Volume");
+
+  svg.append("path")
+    .datum(data)
+    .attr("fill", "none")
+    .attr("stroke", "steelblue")
+    .attr("stroke-width", 1.5)
+    .attr("d", d3.line()
+      .x(function(d) { return x(d.Date); })
+      .y(function(d) { return y(d[metric]); }));
+  
+      d3.select("body").selectAll(".halving-tooltip").remove();
+
+var tooltip = d3.select("body")
+  .append("div")
+    .attr("class", "halving-tooltip")
+    .style("position", "absolute")
+    .style("background", "rgba(255,255,255,0.95)")
+    .style("color", "#222")
+    .style("padding", "10px 14px")
+    .style("border-radius", "7px")
+    .style("box-shadow", "0 2px 8px #aaa")
+    .style("font-size", "13px")
+    .style("pointer-events", "none")
+    .style("visibility", "hidden")
+    .style("z-index", 10000);
+
+d3.select("body").selectAll(".data-tooltip").remove();
+
+var dataTooltip = d3.select("body")
+  .append("div")
+  .attr("class", "data-tooltip")
+  .style("position", "absolute")
+  .style("background", "rgba(255,255,255,0.95)")
+  .style("color", "#222")
+  .style("padding", "8px 12px")
+  .style("border-radius", "5px")
+  .style("border", "1px solid #333")
+  .style("font-size", "12px")
+  .style("pointer-events", "none")
+  .style("visibility", "hidden")
+  .style("z-index", 10001);
+
+//Show datapoint on mouseover
+//Source: https://d3-graph-gallery.com/graph/line_cursor.html
+var bisectDate = d3.bisector(function(d) { return d.Date; }).left;
+
+var focus = svg.append("g")
+  .attr("class", "focus")
+  .style("display", "none");
+
+focus.append("circle")
+  .attr("class", "tooltip-dot")
+  .attr("r", 4);
+
+//rect over svg to track mouse
+svg.append("rect")
+  .attr("class", "overlay")
+  .attr("width", width)
+  .attr("height", height)
+  .attr("fill", "none")
+  .style("pointer-events", "all")
+  .on("mouseover", function() { 
+    focus.style("display", null);
+    dataTooltip.style("visibility", "visible");
+  })
+  .on("mouseout", function() { 
+    focus.style("display", "none");
+    dataTooltip.style("visibility", "hidden");
+  })
+  .on("mousemove", function() {
+    var mouse = d3.mouse(this);
+    var x0 = x.invert(mouse[0]);
+    var i = bisectDate(data, x0, 1);
+    var d0 = data[i - 1];
+    var d1 = data[i];
+    
+    var d = d1 && (x0 - d0.Date > d1.Date - x0) ? d1 : d0;
+    
+    if (d) {
+      focus.attr("transform", "translate(" + x(d.Date) + "," + y(d[metric]) + ")");
+
+      var formatDate = d3.timeFormat("%B %d, %Y");
+      var formatValue = d3.format(".2f");
       
-    // Add the line
-    svg.append("path")
-      .datum(data)
-      .attr("fill", "none")
-      .attr("stroke", "steelblue")
-      .attr("stroke-width", 1.5)
-      .attr("d", d3.line()
-        .x(function(d) { return x(d.Date) })
-        .y(function(d) { return y(d.Close) })
-        )
+      var tooltipContent = "<strong>" + formatDate(d.Date) + "</strong><br/>";
+      if (metric === "Close") {
+        tooltipContent += "Price: $" + formatValue(d.Close);
+      } else {
+        tooltipContent += "Volume: " + formatValue(d.Volume);
+      }
+      
+      dataTooltip
+        .html(tooltipContent)
+        .style("left", (d3.event.pageX + 15) + "px")
+        .style("top", (d3.event.pageY - 28) + "px");
+    }
+  });
 
-})
+halvingEvents.forEach(function(event) {
+  var xDomain = x.domain();
+  //only draw halving line if it's in this slide's x axis
+  if (event.date >= xDomain[0] && event.date <= xDomain[1]) {
+    svg.append("line")
+      .attr("class", "hoverable")
+      .attr("x1", x(event.date))
+      .attr("y1", 0)
+      .attr("x2", x(event.date))
+      .attr("y2", height)
+      .attr("stroke", "#3a53a6")
+      .attr("stroke-width", 2)
+      .attr("stroke-dasharray", "6,6")
+      .attr("opacity", 0.35)
+      .on("mousemove", function() {
+        tooltip
+          .style("visibility", "visible")
+          .html(`<b>${d3.timeFormat("%B %Y")(event.date)}</b><br>${event.label}`)
+          .style("left", (d3.event.pageX + 16) + "px")
+          .style("top", (d3.event.pageY - 30) + "px");
+        d3.select(this).attr("opacity", 0.35);
+      })
+      .on("mouseout", function() {
+        tooltip.style("visibility", "hidden");
+        d3.select(this).attr("opacity", 0.15);
+      });
+  }
+  //invisible rect to help make the dotted line hover area larger
+svg.append("rect")
+  .attr("x", x(event.date)-10)
+  .attr("width", 20)           
+  .attr("y", 0)
+  .attr("height", height)
+  .attr("fill", "transparent")
+  .style("cursor", "pointer")
+  .on("mousemove", function() {
+    tooltip
+      .style("visibility", "visible")
+      .html(`<b>${d3.timeFormat("%B %Y")(event.date)}</b><br>${event.label}`)
+      .style("left", (d3.event.pageX + 16) + "px")
+      .style("top", (d3.event.pageY - 30) + "px");
+    svg.selectAll(".halving-line").filter(function(_, i) {
+      return i === lineIndex;
+    }).attr("opacity", 0.85);
+  })
+  .on("mouseout", function() {
+    tooltip.style("visibility", "hidden");
+    svg.selectAll(".hoverable").attr("opacity", 0.5);
+  });
+});
+
+
+
+//Annotation to mark the previous time period's peak price
+d3.select("#my_dataviz").selectAll(".annotation-group").remove();
+if(metric === "Close" && (slideIndex === 1 || slideIndex === 2)) {
+  var annoValue = slideIndex === 1 ? 19800 : 65000;
+  var yPos = y(annoValue);
+
+  const annos = [
+    {
+      note: {
+        label: "previous period's peak",
+        bgPadding: 0,
+        align: "left"
+      },
+      x: 0, 
+      y: yPos,
+      dx: 10,
+      dy: 0,
+      type: d3.annotationLabel,
+      color: "red",
+      subject: { radius: 4, radiusPadding: 0 }
+    }
+  ];
+
+  const makeAnnotations = d3.annotation()
+    .type(d3.annotationLabel)
+    .annotations(annos)
+    .accessors({
+      x: d => d.x,
+      y: d => d.y
+    })
+    .accessorsInverse({
+      x: d => d.x,
+      y: d => d.y
+    });
+
+  svg.append("g")
+    .attr("class", "annotation-group")
+    .call(makeAnnotations)
+    .selectAll(".annotation-group .annotation-note-label")
+    .style("fill", "red")
+    .style("font-size", "13px")
+    .style("font-weight", 600);
+  svg.selectAll(".annotation-subject path").style("stroke", "red");
+}
+  //disable buttons on end slides
+  prevBtn.property("disabled", slideIndex === 0);
+  nextBtn.property("disabled", slideIndex === numSlides - 1);
+}
+
+//core load data function
+d3.csv("https://raw.githubusercontent.com/alexander-rau/alexander-rau.github.io/refs/heads/main/Bitcoin_history_data.csv",
+  function(d) {
+    return {
+      Date: d3.timeParse("%Y-%m-%d")(d.Date),
+      Close: +d.Close,
+      Volume: +d.Volume
+    };
+  },
+  function(data) {
+    var chunkSize = Math.floor(data.length / numSlides);
+    slideData = [
+      data.slice(0, chunkSize),
+      data.slice(chunkSize, chunkSize * 2),
+      data.slice(chunkSize * 2)
+    ];
+    renderSlideWithText(currentSlide);
+  }
+);
+
 
 </script>
+
+</body>
+</html>
